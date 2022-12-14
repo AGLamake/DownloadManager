@@ -1,3 +1,4 @@
+import datetime
 import glob
 import os
 import random
@@ -5,6 +6,7 @@ import shutil
 import sys  # sys нужен для передачи argv в QApplication
 from urllib import request
 from urllib.parse import urlparse
+from winreg import *
 
 import requests
 from PyQt5 import QtWidgets
@@ -14,12 +16,22 @@ import download  # Это наш конвертированный файл ди�
 class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
     def __init__(self):
         # Это здесь нужно для доступа к переменным, методам
-        # и т.д. в файле design.py
+        # и т.д. в файле design.pyz
         super().__init__()
+
         self.setupUi(self)  # Это нужно для инициализации нашего дизайна
 
-        self.downloadFolder = os.getcwd() + '\\downloads\\'
+        self.downloadFolder = os.getcwd() + '\\downloads\\' # Задаём дефолтную папку внутри структуры приложения
+
+        with OpenKey(HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders') as key:
+            self.downloadFolder = QueryValueEx(key, '{374DE290-123F-4565-9164-39C4925E467B}')[0]
+
+        if not os.path.exists(self.downloadFolder):
+            os.mkdir(self.downloadFolder) # Создаём её, если она не существует
+
         self.label_DownloadFolder.setText(f'{self.downloadFolder}')
+        self.btn_OpenFolder.setEnabled(True)
+
         self.fill_download_table()
 
         self.action_PlaceToDownload.triggered.connect(self.browse_folder)
@@ -31,6 +43,18 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
 
         self.btn_Open.clicked.connect(self.open_file)
         self.btn_Delete.clicked.connect(self.delete_file)
+
+        self.btn_OpenFolder.clicked.connect(self.open_download_folder)
+
+        # Чистка лейблов
+        self.text_File.setText("")
+        self.text_Download.setText("")
+        self.text_Size.setText("")
+        self.text_CreateDate.setText("")
+
+    def open_download_folder(self):
+        """ Открыть выбранную для сохранения файлов папку """
+        os.system(f'start {os.path.realpath(self.downloadFolder)}')
 
     def fill_download_table(self):
         self.table_DownloadList.clear()
@@ -59,9 +83,18 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
 
     def select_file(self):
         try:
-            self.label_SelectedFile.setText(f'Файл: {self.table_DownloadList.selectedItems()[0].text()}')
+            self.text_File.setText(f'{self.table_DownloadList.selectedItems()[0].text()}')
             self.btn_Open.setEnabled(True)
             self.btn_Delete.setEnabled(True)
+
+            dir_state = {0: 'b', 1: 'Kb', 2: 'Mb', 3: 'Gb', 4: 'Tb'}
+            state = 0
+            size = os.stat(self.downloadFolder + "\\" + self.table_DownloadList.selectedItems()[0].text()).st_size / 8
+            while size / 1024 < 100:
+                size /= 1024
+
+            self.text_Size.setText(f'{size} {dir_state[state]}')
+            self.text_CreateDate.setText(str(datetime.datetime.fromtimestamp(os.path.getctime(self.downloadFolder + "\\" + self.table_DownloadList.selectedItems()[0].text()))))
         except Exception as e:
             print(str(e))
             self.label_SelectedFile.setText('Файл: ')
@@ -96,7 +129,7 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
             CurrentRow = self.table_DownloadList.count() - 1
             self.table_DownloadList.setCurrentRow(CurrentRow)
 
-            with open(self.downloadFolder + str(ran) + '.DownloadManager', "wb") as f:
+            with open(self.downloadFolder + filename[:filename.rfind('.')] + '.DownloadManager', "wb") as f:
                 response = requests.get(url, stream=True)
                 total_length = response.headers.get('content-length')
 
@@ -109,6 +142,7 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
                         dl += len(data)
                         f.write(data)
                         done = int(100 * dl / total_length)
+                        self.text_Download.setText(f"{done}%")
                         sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (100 - done)))
                         sys.stdout.flush()
 
@@ -116,7 +150,7 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
 
             for file in glob.glob(self.downloadFolder + "*.DownloadManager"):
                 shutil.copy(file, self.downloadFolder + filename)
-                os.remove(self.downloadFolder + str(ran) + '.DownloadManager')
+                os.remove(self.downloadFolder + filename[:filename.rfind('.')] + '.DownloadManager')
 
             print(f'\n{filename} - done')
         except Exception as e:
@@ -125,7 +159,7 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
             self.fill_download_table()
 
     def open_file(self):
-        os.system('"' + self.downloadFolder + self.table_DownloadList.selectedItems()[0].text() + '"')
+        os.system('"' + self.downloadFolder + "\\" + self.table_DownloadList.selectedItems()[0].text() + '"')
 
     def delete_file(self):
         if os.path.exists(f'{self.downloadFolder}{self.table_DownloadList.selectedItems()[0].text()}'):
