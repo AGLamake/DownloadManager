@@ -1,17 +1,9 @@
-import datetime
-import glob
-import os
-import random
-import shutil
-import sys  # sys нужен для передачи argv в QApplication
-import time
+import datetime, glob, os, random, shutil, sys, time, requests
 from urllib import request
 from urllib.parse import urlparse
 from winreg import *
-
-import requests
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QRunnable, pyqtSignal, pyqtSlot, QThreadPool, QThread
+from PyQt5.QtCore import pyqtSlot, QThread
 
 import download  # Это наш конвертированный файл дизайна
 
