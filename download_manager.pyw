@@ -1,17 +1,28 @@
-import datetime, glob, os, random, shutil, sys, time, requests
+import datetime
+import glob
+import os
+import random
+import requests
+import shutil
+import sys
+import time
 from urllib import request
 from urllib.parse import urlparse
-from winreg import *
+from winreg import OpenKey, HKEY_CURRENT_USER, QueryValueEx
+
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSlot, QThread
 
 import download  # Это наш конвертированный файл дизайна
 
 
+# Основной класс, наследуется от PyQT5 - графического фреймворка.
 class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
+
+    # Инициализация, определение основных переменных класса
     def __init__(self):
         # Это здесь нужно для доступа к переменным, методам
-        # и т.д. в файле design.pyz
+        # и т.д. в файле download.py
         super().__init__()
 
         self.setupUi(self)  # Это нужно для инициализации нашего дизайна
@@ -20,6 +31,7 @@ class DownloadManager(QtWidgets.QMainWindow, download.Ui_Window):
 
         with OpenKey(HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders') as key:
             self.downloadFolder = QueryValueEx(key, '{374DE290-123F-4565-9164-39C4925E467B}')[0]
+            # Ищем папку с загрузками указнную в компьютере по умолчанию в списке регистров
 
         if not os.path.exists(self.downloadFolder):
             os.mkdir(self.downloadFolder)  # Создаём её, если она не существует
@@ -186,19 +198,13 @@ class JobRunner(QThread):
             self.obj.table_DownloadList.setCurrentRow(current_row)
 
             with open(self.downloadFolder + self.filename[:self.filename.rfind('.')] + '.DownloadManager', "wb") as f:
-                print(1)
                 response = requests.get(self.url, stream=True)
-                print(f'response: {response}')
                 total_length = response.headers.get('content-length')
-                print(f'total_length: {total_length}')
                 if total_length is None:  # no content length header
                     f.write(response.content)
-                    print('null total lenght')
                 else:
-                    print(2)
                     dl = 0
                     total_length = int(total_length)
-                    print(3)
                     for data in response.iter_content(chunk_size=4096):
                         while self.is_paused:
                             time.sleep(0)

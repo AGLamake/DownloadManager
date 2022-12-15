@@ -25,6 +25,10 @@
   <property name="windowTitle">
    <string>Менеджер загрузок</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>download/Lamake.jpg</normaloff>download/Lamake.jpg</iconset>
+  </property>
   <property name="animated">
    <bool>true</bool>
   </property>
